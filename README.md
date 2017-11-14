@@ -158,7 +158,7 @@ python drive.py model.json
 The autonomous driving server sends predicted steering angles to the car using the trained network.  Here we can test how well the model performs.  If the car makes mistakes, we return to training mode to collect more training data.
 
 The final output is also added into git repo: output_video.mp4
-
+![ScreenShot](output_video.mp4)
 
 References:
 
