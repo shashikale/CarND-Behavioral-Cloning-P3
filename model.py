@@ -26,21 +26,6 @@ def conv2d_bn(input_x, filters, rows, cols, border_mode='same', strides=(1, 1)):
     return input_x
 
 
-def small_model():
-    img_input = Input(shape=(160, 320, 3))
-    x = Lambda(lambda x: x / 255.0 - 0.5)(img_input)
-    x = Cropping2D(cropping=((70, 25), (0, 0)))(x)
-    x = conv2d_bn(x, 24, 5, 5, strides=(2, 2))
-    x = conv2d_bn(x, 36, 5, 5, strides=(2, 2))
-    x = conv2d_bn(x, 64, 3, 3)
-    x = Flatten(name='flatten')(x)
-    x = Dropout(0.5)(x)
-    x = Dense(50)(x)
-    x = Dropout(0.5)(x)
-    x = Dense(10)(x)
-    x = Dense(1)(x)
-    return Model(img_input, x)
-
 
 def nvidia_model():
     img_input = Input(shape=(160, 320, 3))
@@ -59,55 +44,6 @@ def nvidia_model():
     x = Dense(1)(x)
     return Model(img_input, x)
 
-
-def inception_model():
-    img_input = Input(shape=(160, 320, 3))
-    x = Lambda(lambda x: x / 255.0 - 0.5)(img_input)
-    x = Cropping2D(cropping=((70, 25), (0, 0)))(x)
-    x = conv2d_bn(x, 8, 3, 3)
-    x = conv2d_bn(x, 16, 3, 3)
-    x = MaxPooling2D((3, 3), strides=(1, 1))(x)
-
-    # Inception Module 1
-    im1_1x1 = conv2d_bn(x, 8, 1, 1)
-
-    im1_5x5 = conv2d_bn(x, 4, 1, 1)
-    im1_5x5 = conv2d_bn(im1_5x5, 8, 5, 5)
-
-    im1_3x3 = conv2d_bn(x, 4, 1, 1)
-    im1_3x3 = conv2d_bn(im1_3x3, 8, 3, 3)
-    im1_3x3 = conv2d_bn(im1_3x3, 8, 3, 3)
-
-    im1_max_p = MaxPooling2D((3, 3), strides=(1,1))(x)
-    im1_max_p = conv2d_bn(im1_max_p, 8, 1, 1)
-    im1_max_p = ZeroPadding2D(padding=(1,1))(im1_max_p)
-    
-    x = merge([im1_1x1, im1_5x5, im1_3x3, im1_max_p],
-              mode='concat')
-
-    # Inception Module 2
-    im2_1x1 = conv2d_bn(x, 8, 1, 1)
-
-    im2_5x5 = conv2d_bn(x, 4, 1, 1)
-    im2_5x5 = conv2d_bn(im2_5x5, 8, 5, 5)
-
-    im2_3x3 = conv2d_bn(x, 4, 1, 1)
-    im2_3x3 = conv2d_bn(im2_3x3, 8, 3, 3)
-    im2_3x3 = conv2d_bn(im2_3x3, 8, 3, 3)
-
-    im2_max_p = MaxPooling2D((3, 3), strides=(1,1))(x)
-    im2_max_p = conv2d_bn(im2_max_p, 8, 1, 1)
-    im2_max_p = ZeroPadding2D(padding=(1,1))(im2_max_p)
-    
-    x = merge([im2_1x1, im2_5x5, im2_3x3, im2_max_p],
-              mode='concat')
-    
-    # Fully Connected
-    x = AveragePooling2D((8, 8), strides=(8, 8))(x)
-    x = Dropout(0.5)(x)
-    x = Flatten(name='flatten')(x)
-    x = Dense(1, name='predictions')(x)
-    return Model(img_input, x)
 
 
 def get_batch_properties(images, image_getter):
@@ -252,7 +188,6 @@ def test_generator():
     
 if __name__ == '__main__':
     #test_generator()
-    #main(inception_model, 2, False)
-    #main(nvidia_model, 3, True)
-    main(small_model, 5, True)
-
+    #/*main(inception_model, 2, False)*/
+    main(nvidia_model, 3, True)
+    
