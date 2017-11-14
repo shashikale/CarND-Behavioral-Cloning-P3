@@ -38,70 +38,46 @@ Another option is trying on Udacity data sample.
 Here our goal is to predict the steering angle from the image captured by the cameras of the car . We're trying to map the image  pixel data from the camera to the steering angle  . It's a regression problem as we're predicting a continuous value .
 
 I started with a simple multi layer neural network to with 3 convolution layers and 2 fully connected layers . However it couldn't generalise the prediction as i was expecting.
+
 A significant amount of time was spent on exploring several different neural network archictectures. The two that I looked into was the Nvidia architecture suggested in their paper and the comma.ai steering model.
+
 I took a look at the solution documented in the [NVIDIA Paper, in which raw pixels are mapped steering commands. Because of the similarity of the use case  I decided it would be a good starting point.
 
-The Nvidia architecture is small compared and little complex architectures at start with only 9 layers.After experimenting with a rough replication of the network, I found that I could train relatively fast, and because of this, I decided that did not need transfer learning to complete this project, opting to stick with the simpler Nvidia network.
+The Nvidia architecture is small compared and little complex architectures at start with only 9 layers.After experimenting with a rough replication of the network, I found that I could train relatively fast, and  to stick with the simpler Nvidia network.
 
 After getting the initial network running, I experimented with different dropout layers and activation functions.  
 
-For activations, I read a [Paper on ELU Activations](https://arxiv.org/pdf/1511.07289v1.pdf), which led me to experiment, comparing the training time and loss for RELU vs ELU activations.  After several trials I concluded that ELUs did  give marginally faster performance and lower loss.  ELU activations offer the same protection against vanishing gradiant as RELU, and in addition, ELUs have negative values, which allows them to push the mean activations closer to zero, improving the efficiency of gradient descent.Which is the important ascpect of my experiment.
-
-For dropout, I ran trials with values between 0.2 and 0.5 for fraction of inputs to drop, as well as which layers to include a dropout operation.  I found that my model performed poorly in autonomous mode when including dropout layers in the final fully connected layers.My intuition here is that dropout may not be appropriate for every layer in regression problems. What i learned from various sources that,
-    In classification problems : We are only concerned softmax probabilities relative to another class, so even if dropout effects the final value, it should not matter because we only care about the value relative to other classes.
-    In regression prioblems: We care about the final value, so dropout might have negative effects.
-    To address the above issues , I chose L2 regularization in the fully connected layers. ( Initially, this prevented the model from producing sharp turns, but was fixed after reducing the weight penalty. )
 
 ### Architecture
 
 My architecture is modeled after the network depicted in [NVIDIA Paper](http://images.nvidia.com/content/tegra/automotive/images/2016/solutions/pdf/end-to-end-dl-using-px.pdf).
-The architecture is a traditional "feed-foward" layered architecture in which the output of one layer is fed to the layer above.
-At a high level the network consists of preprocessing layers, 5 convolutional layers, followed by 3 fully connected layers, and a final output layer.
-Since we are working with a regression problem, the output layer is a single continuous value, as apposed to the softmax probabilities used for classification tasks such as traffic sign identification.
 
-Before the first convolutional layer, a small amount of preprocessing takes place within the pipeline.  This includes pooling  and batch normalization.
+The design of the network is based on [the NVIDIA model](https://devblogs.nvidia.com/parallelforall/deep-learning-self-driving-cars/), which has been used by NVIDIA for the end-to-end self driving test.  As such, it is well suited for the project.
 
-Each convolitional has a 1x1 stride, and uses a 2x2 max pooling operation to reduce spatial resolution. The first three convolutional layers use a 5x5 filter, while the final two use a 3x3 filter as the input dimensionality is reduced.
+It is a deep convolution network which works well with supervised image classification / regression problems.  As the NVIDIA model is well documented, I was able to focus how to adjust the training images to produce the best result with some adjustments to the model to avoid overfitting and adding non-linearity to improve the prediction.
 
-For regularization, a spatial dropout operation is added after each convolutional layer.  Spatial dropout layers drop entire 2D features maps instead of individual features.
+I've added the following adjustments to the model.
 
-For non-linearity, ELU activationd are used for each convolutional, as well as each fully connected layer.
+- I used Image normalization and Image Cropping as the first layers and batch normalization layer to each convolution based to improve the learning on the following:Sergey Ioffe and (2015). Batch Normalization: Accelerating Deep Network Training by Reducing. CoRR, abs/1502.03167.
+- I used Lambda layer to normalized input images to avoid saturation and make gradients work better.
+- I've added an additional dropout layer to avoid overfitting after the convolution layers.
+- I've also included RELU for activation function for every layer except for the output layer to introduce non-linearity.
 
-The output from the forth convolutional layer is flattened and fed into a regressor composed of four fully connected layers.  The fully connected layers each reduce the number of features with the final layer outputting a single continuous value.  As noted above, l2 regularization is leveraged in the fully connected layers.
+In the end, the model looks like as follows:
 
+- Image normalization
+- Convolution: 5x5, filter: 24, strides: 2x2, activation: relu
+- Convolution: 5x5, filter: 36, strides: 2x2, activation: relu
+- Convolution: 5x5, filter: 48, strides: 2x2, activation: relu
+- Convolution: 3x3, filter: 64, strides: 1x1, activation: relu
+- Convolution: 3x3, filter: 64, strides: 1x1, activation: relu
+- Drop out (0.5)
+- Fully connected: neurons: 100
+- Fully connected: neurons:  50
+- Fully connected: neurons:  10
+- Fully connected: neurons:   1 (output)
 
-| Layer (type)                                |  Output Shape           |    Param #        |  Connected to                     
-|---------------------------------            |-------------------      |--------------     |------------------------- 
-| maxpooling2d_1 (MaxPooling2D)               | (None, 40, 160, 3)      |  0                | maxpooling2d_input_1[0][0]             
-| batchnormalization_1 (BatchNormalisation)   | (None, 40, 160, 3)      |  160              | maxpooling2d_1[0][0]                  
-| convolution2d_1 (Convolution2D)             | (None, 40, 160, 24)     |  1824             | batchnormalization_1[0][0]           
-| maxpooling2d_2 (MaxPooling2D)               | (None, 20, 80, 24)      |  0                | convolution2d_1[0][0]               
-| spatialdropout2d_1 (SpatialDropout)         | (None, 20, 80, 24)      |  0                | maxpooling2d_2[0][0]             
-| convolution2d_2 (Convolution2D)             | (None, 20, 80, 36)      |  21636            | spatialdropout2d_1[0][0]                      
-| maxpooling2d_3 (MaxPooling2D)               | (None, 10, 40, 36)      |  0                | convolution2d_2[0][0]           
-| spatialdropout2d_2 (SpatialDropout)         | (None, 10, 40, 36)      |  0                | maxpooling2d_3[0][0]                
-| convolution2d_3 (Convolution2D)             | (None, 10, 40, 48)      |  43248            | spatialdropout2d_2[0][0]            
-| maxpooling2d_4 (MaxPooling2D)               | (None, 5, 20, 48)       |  0                | convolution2d_3[0][0]               
-|spatialdropout2d_3 (SpatialDropout)          | (None, 5, 20, 48)       |  0                | maxpooling2d_4[0][0]                 
-|convolution2d_4 (Convolution2D)              | (None, 5, 20, 64)       |  27712            | spatialdropout2d_3[0][0]                    
-| maxpooling2d_5 (MaxPooling2D)               | (None, 3, 10, 64)       |  0                | convolution2d_4[0][0]                     
-| spatialdropout2d_4 (SpatialDropout)         | (None, 3, 10, 64)       |  0                | maxpooling2d_5[0][0]                
-| convolution2d_5 (Convolution2D)             | (None, 3, 10, 64)       |  36928            | spatialdropout2d_4[0][0]                  
-|maxpooling2d_6 (MaxPooling2D)                | (None, 2, 5, 64)        |  0                | convolution2d_5[0][0]  
-| batchnormalization_2 (BatchNormalisation)   | (None, 2, 5, 64)        |  8                | maxpooling2d_6[0][0]
-| spatialdropout2d_5 (SpatialDropout)         | (None, 2, 5, 64)        |  0                | batchnormalization_2[0][0]
-| flatten_1 (Flatten)                         | (None, 640)             |  0                | spatialdropout2d_5[0][0] 
-| dense_1 (Dense)                             | (None, 100)             |  64100            | flatten_1[0][0]
-| dense_2 (Dense)                             | (None, 50)              |  5050             | dense_1[0][0] 
-| dense_3 (Dense)                             | (None, 10)              |  510              | dense_2[0][0]
-| dense_4 (Dense)                             | (None, 1)               |  11               | dense_3[0][0]    
-||||
-| Total params: 201,187
-| Trainable params: 201,103
-| Non-trainable params: 84
-
-See the diagram below.  This diagram is modified from the original source diagram found in the the [NVIDIA Paper](http://images.nvidia.com/content/tegra/automotive/images/2016/solutions/pdf/end-to-end-dl-using-px.pdf).
-The values have been modified to represent input sizes of our recorded training data and to include the additional preprocessing layers.
+As per the NVIDIA model, the convolution layers are meant to handle feature engineering and the fully connected layer for predicting the steering angle.  However, as stated in the NVIDIA document, it is not clear where to draw such a clear distinction.  Overall, the model is very functional to clone the given steering behavior.
 
 
 
@@ -156,10 +132,6 @@ python drive.py model.json
 ```
 
 The autonomous driving server sends predicted steering angles to the car using the trained network.  Here we can test how well the model performs.  If the car makes mistakes, we return to training mode to collect more training data.
-
-The final output is also added into git repo: output_video.mp4
-The final output is also added into git repo: output_video.mp4
-[![Video](images/sample_feature.jpg)(https://github.com/shashikale/CarND-Behavioral-Cloning-P3/blob/master/output_video.mp4)]
 
 
 References:
